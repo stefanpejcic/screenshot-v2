@@ -35,13 +35,14 @@ export default async function handler(req, res) {
 
     const page = await browser.newPage();
 
-    // Set viewport if width/height provided
-    if (width && height) {
-      await page.setViewport({
-        width: parseInt(width, 10),
-        height: parseInt(height, 10),
-      });
-    }
+    // Set default width and height
+    const viewportWidth = width ? parseInt(width, 10) : 1280;
+    const viewportHeight = height ? parseInt(height, 10) : 720;
+    
+    await page.setViewport({
+      width: viewportWidth,
+      height: viewportHeight,
+    });
 
     // Navigate with 5-second timeout
     await page.goto(url, { waitUntil: "networkidle0", timeout: 5000 });
