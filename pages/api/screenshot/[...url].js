@@ -53,7 +53,8 @@ export default async function handler(req, res) {
 
     await page.goto(url, { waitUntil: "networkidle0", timeout: 10000 });
 
-    const screenshot = await page.screenshot({ fullPage: true });
+    // Screenshot without full page (only viewport)
+    const screenshot = await page.screenshot({ fullPage: false });
 
     await browser.close();
 
