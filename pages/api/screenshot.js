@@ -23,10 +23,11 @@ export default async function handler(req, res) {
       });
     }
 
-    await page.goto(url, { waitUntil: "networkidle0" });
+    // Go to URL with 5-second timeout (5000 ms)
+    await page.goto(url, { waitUntil: "networkidle0", timeout: 5000 });
 
     const screenshot = await page.screenshot({
-      fullPage: fullPage === "true", // query param ?fullPage=true
+      fullPage: fullPage === "true",
     });
 
     await browser.close();
@@ -34,6 +35,7 @@ export default async function handler(req, res) {
     res.setHeader("Content-Type", "image/png");
     res.status(200).send(screenshot);
   } catch (error) {
+    await browser?.close();
     res.status(500).json({ error: error.message });
   }
 }
