@@ -11,7 +11,7 @@
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "puppeteer-core": "^21.0.0",
-    "chrome-aws-lambda": "^20.1.0"
+    "@sparticuz/chromium": "^138.0.2"
   },
   "engines": {
     "node": "22.x"
