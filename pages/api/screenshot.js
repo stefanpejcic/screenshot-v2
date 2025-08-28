@@ -2,28 +2,22 @@ import puppeteer from "puppeteer-core";
 import chromium from "@sparticuz/chromium";
 import fs from "fs";
 import path from "path";
-import crypto from "crypto";
 
 export default async function handler(req, res) {
-  const { url: urlSegments, width, height, fullPage } = req.query;
+  const { url, width, height, fullPage } = req.query;
 
-  if (!urlSegments || urlSegments.length === 0) {
-    return res.status(400).json({ error: "URL path is required" });
-  }
+  if (!url) return res.status(400).json({ error: "URL is required" });
 
-  // Reconstruct URL from path segments
-  const url = decodeURIComponent(urlSegments.join("/"));
+  // Create a safe filename for /tmp cache
+  const safeFileName = encodeURIComponent(url);
+  const filePath = path.join("/tmp", `${safeFileName}.png`);
 
-  // Create hashed filename for caching
-  const hash = crypto.createHash("md5").update(url).digest("hex");
-  const filePath = path.join("/tmp", `${hash}.png`);
-
-  // Serve cached screenshot if exists and fresh
+  // Check if cached screenshot exists and is less than 24h old
   if (fs.existsSync(filePath)) {
     const stats = fs.statSync(filePath);
     const age = Date.now() - stats.mtimeMs;
 
-    if (age < 24 * 60 * 60 * 1000) {
+    if (age < 24 * 60 * 60 * 1000) { // 24 hours
       const cached = fs.readFileSync(filePath);
       res.setHeader("Content-Type", "image/png");
       res.setHeader("X-Cache", "HIT");
@@ -31,9 +25,9 @@ export default async function handler(req, res) {
     }
   }
 
-  let browser;
+  // Otherwise, generate screenshot
   try {
-    browser = await puppeteer.launch({
+    const browser = await puppeteer.launch({
       args: chromium.args,
       executablePath: await chromium.executablePath(),
       headless: chromium.headless,
@@ -42,26 +36,30 @@ export default async function handler(req, res) {
     const page = await browser.newPage();
 
     // Set viewport if width/height provided
-    const viewport = {};
-    if (width && !isNaN(parseInt(width, 10))) viewport.width = parseInt(width, 10);
-    if (height && !isNaN(parseInt(height, 10))) viewport.height = parseInt(height, 10);
-    if (Object.keys(viewport).length) await page.setViewport(viewport);
+    if (width && height) {
+      await page.setViewport({
+        width: parseInt(width, 10),
+        height: parseInt(height, 10),
+      });
+    }
 
+    // Navigate with 5-second timeout
     await page.goto(url, { waitUntil: "networkidle0", timeout: 5000 });
 
     const screenshot = await page.screenshot({
-      fullPage: fullPage === "true" || fullPage === true,
+      fullPage: fullPage === "true",
     });
 
     await browser.close();
 
+    // Save screenshot to /tmp
     fs.writeFileSync(filePath, screenshot);
 
     res.setHeader("Content-Type", "image/png");
     res.setHeader("X-Cache", "MISS");
     return res.status(200).send(screenshot);
   } catch (error) {
-    if (browser) await browser.close();
+    await browser?.close();
     return res.status(500).json({ error: error.message });
   }
 }
