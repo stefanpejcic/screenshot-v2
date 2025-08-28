@@ -4,20 +4,25 @@ import fs from "fs";
 import path from "path";
 
 export default async function handler(req, res) {
-  const { url, width, height, fullPage } = req.query;
+  let { url, width, height, fullPage } = req.query;
 
   if (!url) return res.status(400).json({ error: "URL is required" });
+
+  // Add https:// if missing
+  if (!/^https?:\/\//i.test(url)) {
+    url = `https://${url}`;
+  }
 
   // Create a safe filename for /tmp cache
   const safeFileName = encodeURIComponent(url);
   const filePath = path.join("/tmp", `${safeFileName}.png`);
 
-  // Check if cached screenshot exists and is less than 24h old
+  // Check cache
   if (fs.existsSync(filePath)) {
     const stats = fs.statSync(filePath);
     const age = Date.now() - stats.mtimeMs;
 
-    if (age < 24 * 60 * 60 * 1000) { // 24 hours
+    if (age < 24 * 60 * 60 * 1000) { // 24h
       const cached = fs.readFileSync(filePath);
       res.setHeader("Content-Type", "image/png");
       res.setHeader("X-Cache", "HIT");
@@ -25,9 +30,9 @@ export default async function handler(req, res) {
     }
   }
 
-  // Otherwise, generate screenshot
+  let browser;
   try {
-    const browser = await puppeteer.launch({
+    browser = await puppeteer.launch({
       args: chromium.args,
       executablePath: await chromium.executablePath(),
       headless: chromium.headless,
@@ -35,25 +40,18 @@ export default async function handler(req, res) {
 
     const page = await browser.newPage();
 
-    // Set default width and height
     const viewportWidth = width ? parseInt(width, 10) : 1280;
     const viewportHeight = height ? parseInt(height, 10) : 720;
-    
-    await page.setViewport({
-      width: viewportWidth,
-      height: viewportHeight,
-    });
 
-    // Navigate with 5-second timeout
-    await page.goto(url, { waitUntil: "networkidle0", timeout: 5000 });
+    await page.setViewport({ width: viewportWidth, height: viewportHeight });
 
-    const screenshot = await page.screenshot({
-      fullPage: fullPage === "true",
-    });
+    // Navigate with 10s timeout
+    await page.goto(url, { waitUntil: "networkidle0", timeout: 10000 });
+
+    const screenshot = await page.screenshot({ fullPage: fullPage === "true" });
 
     await browser.close();
 
-    // Save screenshot to /tmp
     fs.writeFileSync(filePath, screenshot);
 
     res.setHeader("Content-Type", "image/png");
