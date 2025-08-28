@@ -4,23 +4,22 @@ import fs from "fs";
 import path from "path";
 
 export default async function handler(req, res) {
-  // Join all parts of the catch-all route into a single URL
-  let urlParts = req.query.url; // this is an array
+  let urlParts = req.query.url; // array
   if (!urlParts || urlParts.length === 0) {
     return res.status(400).json({ error: "URL is required" });
   }
 
   let url = urlParts.join("/");
 
-  // Add https:// if missing
+  // https:// if missing
   if (!/^https?:\/\//i.test(url)) {
     url = `https://${url}`;
   }
 
-  // Optional: decode URL-encoded parts
+  // decode URL-encoded parts
   url = decodeURIComponent(url);
 
-  // Cache setup
+  // cache
   const safeFileName = encodeURIComponent(url);
   const filePath = path.join("/tmp", `${safeFileName}.png`);
 
@@ -53,7 +52,6 @@ export default async function handler(req, res) {
 
     await page.goto(url, { waitUntil: "networkidle0", timeout: 10000 });
 
-    // Screenshot without full page (only viewport)
     const screenshot = await page.screenshot({ fullPage: false });
 
     await browser.close();
