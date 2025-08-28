@@ -11,6 +11,6 @@
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "puppeteer-core": "^21.0.0",
-    "@sparticuz/chromium": "^119.0.2"
+    "@vercel/chromium": "^119.0.2"
   }
 }
