@@ -2,7 +2,8 @@ import puppeteer from "puppeteer-core";
 import chromium from "@sparticuz/chromium";
 
 export default async function handler(req, res) {
-  const { url } = req.query;
+  const { url, width, height, fullPage } = req.query;
+
   if (!url) return res.status(400).json({ error: "URL is required" });
 
   try {
@@ -13,8 +14,21 @@ export default async function handler(req, res) {
     });
 
     const page = await browser.newPage();
+
+    // Set viewport if width/height provided
+    if (width && height) {
+      await page.setViewport({
+        width: parseInt(width, 10),
+        height: parseInt(height, 10),
+      });
+    }
+
     await page.goto(url, { waitUntil: "networkidle0" });
-    const screenshot = await page.screenshot();
+
+    const screenshot = await page.screenshot({
+      fullPage: fullPage === "true", // query param ?fullPage=true
+    });
+
     await browser.close();
 
     res.setHeader("Content-Type", "image/png");
