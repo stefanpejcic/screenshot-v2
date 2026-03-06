@@ -1,6 +1,6 @@
 # screenshot-v2
 
-Simple screenshots api: puppeteer and vercel
+Simple screenshots api: puppeteer and nextjs
 
 ## Usage
 
