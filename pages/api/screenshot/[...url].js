@@ -19,6 +19,22 @@ export default async function handler(req, res) {
   // decode URL-encoded parts
   url = decodeURIComponent(url);
 
+  // ?format=base64 or ?format=datauri -> return JSON with a data: URI instead of raw bytes
+  const wantsDataUri = ["base64", "datauri", "data-uri"].includes(
+    String(req.query.format || "").toLowerCase()
+  );
+
+  const sendImage = (buffer, cacheStatus) => {
+    if (wantsDataUri) {
+      const dataUri = `data:image/png;base64,${buffer.toString("base64")}`;
+      res.setHeader("X-Cache", cacheStatus);
+      return res.status(200).json({ url, dataUri });
+    }
+    res.setHeader("Content-Type", "image/png");
+    res.setHeader("X-Cache", cacheStatus);
+    return res.status(200).send(buffer);
+  };
+
   // cache
   const safeFileName = encodeURIComponent(url);
   const filePath = path.join("/tmp", `${safeFileName}.png`);
@@ -29,9 +45,7 @@ export default async function handler(req, res) {
 
     if (age < 24 * 60 * 60 * 1000) {
       const cached = fs.readFileSync(filePath);
-      res.setHeader("Content-Type", "image/png");
-      res.setHeader("X-Cache", "HIT");
-      return res.status(200).send(cached);
+      return sendImage(cached, "HIT");
     }
   }
 
@@ -58,9 +72,7 @@ export default async function handler(req, res) {
 
     fs.writeFileSync(filePath, screenshot);
 
-    res.setHeader("Content-Type", "image/png");
-    res.setHeader("X-Cache", "MISS");
-    return res.status(200).send(screenshot);
+    return sendImage(screenshot, "MISS");
   } catch (error) {
     await browser?.close();
     return res.status(500).json({ error: error.message });
